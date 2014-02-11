@@ -32,11 +32,19 @@ function ParticleWorld_addBank(bank)
 	this.particleBanks.push(bank);
 }
 
-function ParticleWorld_update(dtime)
+function ParticleWorld_update()
 {
 	for(var i = 0; i < this.particleBanks.lenght; i++)
 	{
-		this.particleBanks.update(dtime);
+		this.particleBanks.update();
+	}
+}
+
+function ParticleWorld_render()
+{
+	for(var i = 0; i < this.particleBanks.lenght; i++)
+	{
+		this.particleBanks.render();
 	}
 }
 
@@ -44,6 +52,7 @@ function ParticleWorld()
 {
 	this.particleBanks = new Array();
 	this.update = ParticleWorld_update;
+	this.render = ParticleWorld_render;
 }
 // ---------------------------------------------------------------- END PARTICLE WORLD -----------------------
 
@@ -90,15 +99,68 @@ function ParticleBank_addModifier( modifier )
 	this.modifiers.push( modifier );
 }
 
-function ParticleBank_update( dtime )
+function ParticleBank_update( )
 {
-	gl.bufferSubData// push buffers here;
+	// calculate pointer to tail of alive part of particles in our ring buffer 
+	var tail = this.headPoiter - this.activeCount;
+	if( tail < 0 )
+	{
+		tail += this.bufSize;
+	}
+	var aliveFound = false;
+
+	// particle expiration part here
+	do
+	{
+		if( activeCount == 0 )
+		{
+			break;
+		}
+		// calculate amount of time passed since particle was released. 
+		// If it's greater than lifetime, decrease count of alive particles
+		if( ( this.pworld.GetNowTime() - this.ringBuffer[tail * this.vertexElements + 6] ) > this.lifetime )
+		{
+			this.activeCount -= 1;
+			tail += 1;
+		}
+		else // if we encountered alive particle, there is no more expired ones left
+		{
+			aliveFound = true;
+		}
+		if( tail >= this.bufSize ) // loop ring buffer
+		{
+			tail = 0;
+		}
+	} while (!aliveFound)
+
+	// update gpu buffers part here
+
+	if(this.lastHeadPointer != this.headPoiter)
+	{
+		if(this.lastHeadPointer < this.headPoiter)
+		{
+			var difference = this.headPoiter - this.lastHeadPointer;
+			// HERE RINGBUFFER IS NOT RIGHT!! Need to pass a part of array (something like: ringBuffer + ( difference * vertexElements ) )
+			gl.bufferSubData(gl.ARRAY_BUFFER, this.lastHeadPointer * this.vertexElements, new Float32Array(this.ringBuffer) );
+		}
+		else
+		{
+			var difference1 = (this.bufSize - lastHeadPointer);
+			var difference2 = headPoiter;
+			// HERE RINGBUFFER IS NOT RIGHT!! Need to pass a part of array (something like: ringBuffer + ( difference1 * vertexElements ) )
+			gl.bufferSubData(gl.ARRAY_BUFFER, this.lastHeadPointer * this.vertexElements, new Float32Array(this.ringBuffer) );
+
+			gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array(this.ringBuffer) );
+		}
+		this.lastHeadPointer = this.headPoiter;
+	}
 }
 
-function ParticleBank(size)
+function ParticleBank(size, lifetime)
 {
 	this.vertexElements = 7;
 	this.bufSize = size;
+	this.lifetime = lifetime;
 	this.ringBuffer = new Array(size * this.vertexElements);
 	for (var i = size - 1; i >= 0; i--) 
 	{
@@ -126,6 +188,7 @@ function ParticleBank(size)
 
 	this.headPoiter = 0;
 	this.activeCount = 0;
+	this.lastHeadPointer = 0;
 
 	this.dynamicBufferGPU = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, 	seedBufferGPU);
@@ -235,7 +298,10 @@ function initShaders(){
 
 	var particleWorld = new ParticleWorld();
 
+	var bank = new ParticleBank(500 /* buf size */, 1000/* lifetime */);
+	particleWorld.addBank(bank);
 	var emitter = new ParticleEmitter( new ShapePoint({200, 200}));
+	bank.addEmitter(emitter);
 
 	var lastUpdate = Date.now();
 	var myInterval = setInterval(tick, 0);
@@ -248,9 +314,12 @@ function initShaders(){
     	lastUpdate = now;
     	//-------------------------
 
+
+
     	//----update particle systems---
-		particleWorld.update(dt);
+		particleWorld.update();
 		//------------------------------
+		particleWorld.render();
 	}
 
 
