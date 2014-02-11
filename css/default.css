@@ -1,0 +1,8 @@
+body{
+	margin: 0 auto;
+	width: 800px;
+}
+#cnvs {
+	margin-top: 20px;
+	border: solid 1px blue;
+}

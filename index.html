@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<script id="shader-vs" type="x-shader/x-vertex">
+		attribute vec3 a_position;
+		attribute vec3 a_direction;
+		attribute float a_velocity;
+		attribute vec4 a_color;
+		attribute float a_startTime;
+
+		varying vec4 v_color;
+
+
+		void main()
+		{
+			v_color = a_color;
+			gl_Position = a_position + a_direction * a_velocity;
+			gl_PointSize = 4.0;
+		}
+	</script>
+	<script id="shader-fs" type="x-shader/x-fragment">
+		varying mediump vec2 TextureCoord;
+		varying mediump vec2 TextureSize;
+		uniform sampler2D Sampler;
+
+		void main(void)
+		{
+		    // This is where the magic happens.  Combine all three factors to render
+		    // just a portion of the sprite-sheet for this point
+		    mediump vec2 realTexCoord = TextureCoord + (gl_PointCoord * TextureSize);
+		    mediump vec4 fragColor = texture2D(Sampler, realTexCoord);
+
+		    // Optional, emulate GL_ALPHA_TEST to use transparent images with
+		    // point sprites without worrying about z-order.
+		    // see: http://stackoverflow.com/a/5985195/806988
+		    if(fragColor.a == 0.0){
+		        discard;
+		    }
+
+		    gl_FragColor = fragColor;
+		}
+	</script>
+	<script type="text/javascript" src="js/webgl-debug.js"></script>
+	<script type="text/javascript" src="js/sylvester.js"></script>
+	<script type="text/javascript" src="js/glstuff.js"></script>
+	<script type="text/javascript" src="js/Stats.js"></script>
+	<script type="text/javascript" src="js/script.js"></script>
+	<link rel="stylesheet" type="text/css" href="css/default.css">
+	<title>WEBGL</title>
+</head>
+<body>
+	<canvas width="800" height="600" id="cnvs"></canvas>
+</body>
+</html>
