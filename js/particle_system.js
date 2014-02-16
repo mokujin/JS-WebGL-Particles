@@ -142,7 +142,7 @@ function ParticleBank_update( )
 	// update gpu buffers part here
 
 	gl.bindBuffer(gl.ARRAY_BUFFER, 	this.dynamicBufferGPU);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.ringBuffer), gl.DYNAMIC_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, this.ringBuffer, gl.DYNAMIC_DRAW);
 /*
 	if(this.lastHeadPointer != this.headPoiter)
 	{
@@ -214,7 +214,7 @@ function ParticleBank(size, lifetime, shader)
 	this.vertexElements = 7;
 	this.bufSize = size;
 	this.lifetime = lifetime;
-	this.ringBuffer = new Array(size * this.vertexElements);
+	this.ringBuffer = new Float32Array(size * this.vertexElements);
 	for (var i = size - 1; i >= 0; i--) 
 	{
 		// position
@@ -229,7 +229,7 @@ function ParticleBank(size, lifetime, shader)
 		this.ringBuffer[i + 6] = 0;
 	};
 
-	this.seedBuffer = new Array(size);
+	this.seedBuffer = new Float32Array(size);
 	for (var i = size - 1; i >= 0; i--) 
 	{
 		this.seedBuffer[i] = Math.random();
@@ -251,10 +251,10 @@ function ParticleBank(size, lifetime, shader)
 
 	this.dynamicBufferGPU = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, 	this.dynamicBufferGPU);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.ringBuffer), gl.DYNAMIC_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, this.ringBuffer, gl.DYNAMIC_DRAW);
 	this.seedBufferGPU = gl.createBuffer();
 	gl.bindBuffer(gl.ARRAY_BUFFER, 	this.seedBufferGPU);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.seedBuffer), gl.STATIC_DRAW);
+	gl.bufferData(gl.ARRAY_BUFFER, this.seedBuffer, gl.STATIC_DRAW);
 
 	this.shader = shader;
 	this.initShader();
@@ -347,7 +347,7 @@ function main () {
 	
 	particleWorld = new ParticleWorld();
 
-	var bank = new ParticleBank(5000 /* buf size */, 10000/* lifetime */, loadProgram (gl, "shader-vs", "shader-fs" ));
+	var bank = new ParticleBank(50000 /* buf size */, 10000/* lifetime */, loadProgram (gl, "shader-vs", "shader-fs" ));
 	particleWorld.addBank(bank);
 	var pos = {x:0, y:0, z:0}; 
 	emitter = new ParticleEmitter( new ShapePoint(pos), 2);
