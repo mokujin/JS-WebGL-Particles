@@ -112,7 +112,8 @@ function setMatrixUniform ( gl, program, name, mat )
 function bindPointer(gl, program, name, elements, stride, offset)
 {
 	var pos = gl.getAttribLocation(program, name);
-	gl.vertexAttribPointer(pos, elements, gl.FLOAT, false, stride, offset);
+    if( pos != -1)
+	   gl.vertexAttribPointer(pos, elements, gl.FLOAT, false, stride, offset);
 }
 
 function createGLTexture(gl, image, texture)

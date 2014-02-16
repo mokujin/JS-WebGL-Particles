@@ -2,49 +2,33 @@
 <html>
 <head>
 	<script id="shader-vs" type="x-shader/x-vertex">
-		attribute vec3 a_position;
-		attribute vec3 a_direction;
-		attribute float a_velocity;
-		attribute vec4 a_color;
-		attribute float a_startTime;
+		attribute vec3 a_Position;
+		attribute vec3 a_Direction;
+		attribute float a_Time;
+		attribute float a_Seed;
 
-		varying vec4 v_color;
-
+		uniform float u_CurrentTime;
+		uniform float u_Lifetime;
 
 		void main()
 		{
-			v_color = a_color;
-			gl_Position = a_position + a_direction * a_velocity;
-			gl_PointSize = 4.0;
+			float period = (u_CurrentTime - a_Time) / u_Lifetime;
+			gl_Position = vec4(a_Position.x+period,a_Position.y,a_Position.z, 1.0);
+			gl_PointSize = 40.0 * a_Seed;
 		}
 	</script>
 	<script id="shader-fs" type="x-shader/x-fragment">
-		varying mediump vec2 TextureCoord;
-		varying mediump vec2 TextureSize;
-		uniform sampler2D Sampler;
 
 		void main(void)
 		{
-		    // This is where the magic happens.  Combine all three factors to render
-		    // just a portion of the sprite-sheet for this point
-		    mediump vec2 realTexCoord = TextureCoord + (gl_PointCoord * TextureSize);
-		    mediump vec4 fragColor = texture2D(Sampler, realTexCoord);
-
-		    // Optional, emulate GL_ALPHA_TEST to use transparent images with
-		    // point sprites without worrying about z-order.
-		    // see: http://stackoverflow.com/a/5985195/806988
-		    if(fragColor.a == 0.0){
-		        discard;
-		    }
-
-		    gl_FragColor = fragColor;
+		    gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
 		}
 	</script>
 	<script type="text/javascript" src="js/webgl-debug.js"></script>
 	<script type="text/javascript" src="js/sylvester.js"></script>
 	<script type="text/javascript" src="js/glstuff.js"></script>
 	<script type="text/javascript" src="js/Stats.js"></script>
-	<script type="text/javascript" src="js/script.js"></script>
+	<script type="text/javascript" src="js/particle_system.js"></script>
 	<link rel="stylesheet" type="text/css" href="css/default.css">
 	<title>WEBGL</title>
 </head>

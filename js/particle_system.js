@@ -9,7 +9,7 @@ function ShapePoint(position)
 	}
 	this.nextDirection = function(pos)
 	{
-		var dir = {x = Math.random(), y = Math.random()}
+		var dir = {x:Math.random(), y:Math.random(), z:0};
 		var len = Math.sqrt( dir.x * dir.x + dir.y * dir.y );
 		dir.x = dir.x / len;
 		dir.y = dir.y / len;
@@ -23,7 +23,8 @@ function ShapePoint(position)
 
 function ParticleWorld_GetNowTime()
 {
-	return Date.now();
+	var date = Date.now();
+	return new Date().getTime();
 }
 
 function ParticleWorld_addBank(bank)
@@ -34,17 +35,17 @@ function ParticleWorld_addBank(bank)
 
 function ParticleWorld_update()
 {
-	for(var i = 0; i < this.particleBanks.lenght; i++)
+	for(var i = 0; i < this.particleBanks.length; i++)
 	{
-		this.particleBanks.update();
+		this.particleBanks[i].update();
 	}
 }
 
 function ParticleWorld_render()
 {
-	for(var i = 0; i < this.particleBanks.lenght; i++)
+	for(var i = 0; i < this.particleBanks.length; i++)
 	{
-		this.particleBanks.render();
+		this.particleBanks[i].render();
 	}
 }
 
@@ -53,6 +54,8 @@ function ParticleWorld()
 	this.particleBanks = new Array();
 	this.update = ParticleWorld_update;
 	this.render = ParticleWorld_render;
+	this.addBank = ParticleWorld_addBank;
+	this.GetNowTime = ParticleWorld_GetNowTime;
 }
 // ---------------------------------------------------------------- END PARTICLE WORLD -----------------------
 
@@ -60,20 +63,20 @@ function ParticleWorld()
 
 function ParticleBank_isFull( )
 {
-	return activeCount >= bufSize; // actually activeCount can't be greater than bufSize
+	return this.activeCount >= this.bufSize; // actually activeCount can't be greater than bufSize
 }
 
 function ParticleBank_nextFree( )
 {
-	if(activeCount == 0)
+	if(this.activeCount == 0)
 	{
-		activeCount += 1;
-		return headPoiter;
+		this.activeCount += 1;
+		return this.headPoiter;
 	}
-	else if( activeCount < bufSize )
+	else if( this.activeCount < this.bufSize )
 	{
-		var nextPoint = headPoiter;
-		if(nextPoint == bufSize - 1)
+		var nextPoint = this.headPoiter;
+		if(nextPoint == this.bufSize - 1)
 		{
 			nextPoint = 0;
 		}
@@ -82,7 +85,7 @@ function ParticleBank_nextFree( )
 			nextPoint += 1;
 		}
 		this.activeCount += 1;
-		return headPoiter; 
+		return this.headPoiter; 
 	}
 	return -1;
 }
@@ -90,8 +93,9 @@ function ParticleBank_nextFree( )
 function ParticleBank_addEmitter( emitter )
 {
 	emitter.pbank = this;
+
 	emitter.pworld = this.pworld;
-	this.emitters.push( enmitter );
+	this.emitters.push( emitter );
 }
 
 function ParticleBank_addModifier( modifier )
@@ -112,14 +116,15 @@ function ParticleBank_update( )
 	// particle expiration part here
 	do
 	{
-		if( activeCount == 0 )
-		{
+		if( this.activeCount == 0 )
+		{			
 			break;
 		}
 		// calculate amount of time passed since particle was released. 
 		// If it's greater than lifetime, decrease count of alive particles
 		if( ( this.pworld.GetNowTime() - this.ringBuffer[tail * this.vertexElements + 6] ) > this.lifetime )
 		{
+console.log(this.ringBuffer[tail * this.vertexElements + 6] );
 			this.activeCount -= 1;
 			tail += 1;
 		}
@@ -135,6 +140,9 @@ function ParticleBank_update( )
 
 	// update gpu buffers part here
 
+	gl.bindBuffer(gl.ARRAY_BUFFER, 	this.dynamicBufferGPU);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.ringBuffer), gl.DYNAMIC_DRAW);
+/*
 	if(this.lastHeadPointer != this.headPoiter)
 	{
 		if(this.lastHeadPointer < this.headPoiter)
@@ -153,10 +161,54 @@ function ParticleBank_update( )
 			gl.bufferSubData(gl.ARRAY_BUFFER, 0, new Float32Array(this.ringBuffer) );
 		}
 		this.lastHeadPointer = this.headPoiter;
-	}
+	}*/
 }
 
-function ParticleBank(size, lifetime)
+function ParticleBank_draw()
+{
+	gl.useProgram(this.shader);
+	gl.bindBuffer(gl.ARRAY_BUFFER, 	this.dynamicBufferGPU);
+
+	//gl.uniform1f(gl.getUniformLocation(this.shader, "time"), time);
+	bindPointer(gl, this.shader, "a_Position", 	3, this.vertexElements * 4, 0  );
+	bindPointer(gl, this.shader, "a_Direction", 3, this.vertexElements * 4, 3*4);
+	bindPointer(gl, this.shader, "a_Time", 		1, this.vertexElements * 4, 6*4);
+
+	gl.bindBuffer(gl.ARRAY_BUFFER, 	this.seedBufferGPU);
+
+	bindPointer(gl, this.shader, "a_Seed", 		1, 4, 0);
+
+	gl.uniform1f(gl.getUniformLocation(this.shader, "u_CurrentTime"), this.pworld.GetNowTime());
+	gl.uniform1f(gl.getUniformLocation(this.shader, "u_Lifetime"), this.lifetime);
+
+	if(this.activeCount > 0)
+	{
+		// calculate pointer to tail of alive part of particles in our ring buffer 
+		var tail = this.headPoiter - this.activeCount;
+		if( tail < 0 )
+		{
+			gl.drawArrays(gl.POINTS, 0, this.headPoiter);
+			tail += this.bufSize;
+			gl.drawArrays(gl.POINTS, tail, this.bufSize - tail);
+		}
+		else
+		{
+			gl.drawArrays(gl.POINTS, this.headPoiter - this.activeCount, this.activeCount);
+		}
+	}
+	gl.flush ();
+}
+
+function ParticleBank_initShader()
+{
+	gl.useProgram(this.shader);
+	enableAtribArray(gl, this.shader, "a_Position");
+	enableAtribArray(gl, this.shader, "a_Direction");
+	enableAtribArray(gl, this.shader, "a_Time");
+	enableAtribArray(gl, this.shader, "a_Seed");
+}
+
+function ParticleBank(size, lifetime, shader)
 {
 	this.vertexElements = 7;
 	this.bufSize = size;
@@ -165,37 +217,46 @@ function ParticleBank(size, lifetime)
 	for (var i = size - 1; i >= 0; i--) 
 	{
 		// position
-		ringBuffer[i + 0] = 0;
-		ringBuffer[i + 1] = 0;
-		ringBuffer[i + 2] = 0;
+		this.ringBuffer[i + 0] = 0;
+		this.ringBuffer[i + 1] = 0;
+		this.ringBuffer[i + 2] = 0;
 		// direction
-		ringBuffer[i + 3] = 0;
-		ringBuffer[i + 4] = 0;
-		ringBuffer[i + 5] = 0;
+		this.ringBuffer[i + 3] = 0;
+		this.ringBuffer[i + 4] = 0;
+		this.ringBuffer[i + 5] = 0;
 		// time
-		ringBuffer[i + 6] = 0;
+		this.ringBuffer[i + 6] = 0;
 	};
 
 	this.seedBuffer = new Array(size);
 	for (var i = size - 1; i >= 0; i--) 
 	{
-		seedBuffer[i] = Math.random();
+		this.seedBuffer[i] = Math.random();
 	};
+
+	this.emitters = [];
+
+	this.initShader = ParticleBank_initShader;
 	this.update = ParticleBank_update;
-	this.addEmitter = addEmitter;
+	this.render = ParticleBank_draw;
+	this.addEmitter = ParticleBank_addEmitter;
+	this.isFull = ParticleBank_isFull;
+	this.nextFree = ParticleBank_nextFree;
 	//this.addModifier = addModifier;
-	this.stateManager = _stateManager;
 
 	this.headPoiter = 0;
 	this.activeCount = 0;
 	this.lastHeadPointer = 0;
 
 	this.dynamicBufferGPU = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, 	seedBufferGPU);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(ringBuffer), gl.STATIC_DRAW);
+	gl.bindBuffer(gl.ARRAY_BUFFER, 	this.dynamicBufferGPU);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.ringBuffer), gl.DYNAMIC_DRAW);
 	this.seedBufferGPU = gl.createBuffer();
-	gl.bindBuffer(gl.ARRAY_BUFFER, 	seedBufferGPU);
-	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(seedBuffer), gl.STATIC_DRAW);
+	gl.bindBuffer(gl.ARRAY_BUFFER, 	this.seedBufferGPU);
+	gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(this.seedBuffer), gl.STATIC_DRAW);
+
+	this.shader = shader;
+	this.initShader();
 }
 // --------------------------------------------------------------- END PARTICLE BANK ----------------------
 
@@ -206,13 +267,13 @@ function ParticleEmitter_trigger()
 	var i = this.releaseQuantity - 1;
 	while ( i >= 0 ) 
 	{
-		var position = shape.nextPosition();
-		var direction = shape.nextDirection(position);
+		var position = this.shape.nextPosition();
+		var direction = this.shape.nextDirection(position);
 		if(this.pbank != null && this.pworld != null)
 		{
 			if( !this.pbank.isFull() )
 			{
-				var index = this.pbank.nextFree() * this.bank.vertexElements;
+				var index = this.pbank.nextFree() * this.pbank.vertexElements;
 				// position
 				this.pbank.ringBuffer[index + 0] = position.x;
 				this.pbank.ringBuffer[index + 1] = position.y;
@@ -222,7 +283,8 @@ function ParticleEmitter_trigger()
 				this.pbank.ringBuffer[index + 4] = direction.y;
 				this.pbank.ringBuffer[index + 5] = direction.z;
 				// time
-				this.pbank.ringBuffer[index + 6].direction = pworld.GetNowTime();
+				this.pbank.ringBuffer[index + 6] = this.pworld.GetNowTime();
+				console.log(this.pbank.ringBuffer[index + 6]);
 			}
 		}
 
@@ -235,6 +297,7 @@ function ParticleEmitter(shape, releaseQuantity)
 	this.shape = shape;
 	this.bank = null;
 	this.releaseQuantity = releaseQuantity;
+	this.trigger = ParticleEmitter_trigger;
 }
 
 // --------------------------------------------------------------- END PARTICLE EMITTER ------------------------
@@ -244,26 +307,9 @@ var w, h, gl, canvas;
 var requestAnimationFrame = 
     requestAnimationFrame ||
     mozRequestAnimationFrame;
-window.onload = init;
+window.onload = main;
 var stats = new Stats();
 
-function init () {
-	// Align top-left
-	stats.setMode(0);
-	stats.domElement.style.position = 'absolute';
-	stats.domElement.style.left = '0px';
-	stats.domElement.style.top = '0px';
-	document.body.appendChild( stats.domElement );
-
-	canvas = document.getElementById("cnvs");
-	initGL();
-	initShaders();
-    initBuffers();
-
-	gl.clearColor(0.0, 0.0, 0.0, 1.0);
-	
-	animLoop();
-}
 function initGL()
 {
 	console.log("start initializing WebGL :|");
@@ -283,44 +329,56 @@ function initGL()
 
 }
 
-function initShaders(){
-	shaderProgram = loadProgram (gl, "shader-vs", "shader-fs" );
-	gl.useProgram(shaderProgram);
-
-	enableAtribArray(gl, shaderProgram, "aVertexPosition");
-	enableAtribArray(gl, shaderProgram, "aVertexColor");
-	enableAtribArray(gl, shaderProgram, "aTexCoord");
-}
 // --------------------------------------------------------------- END INIT STUFF ----------------------------
 
 // ---------------------------------------------------------------------- MAIN ----------------------
-(function main(){
+var particleWorld;
+var emitter;
+function main () {
+	// Align top-left
+	stats.setMode(0);
+	stats.domElement.style.position = 'absolute';
+	stats.domElement.style.left = '0px';
+	stats.domElement.style.top = '0px';
+	document.body.appendChild( stats.domElement );
 
-	var particleWorld = new ParticleWorld();
+	canvas = document.getElementById("cnvs");
+	initGL();
 
-	var bank = new ParticleBank(500 /* buf size */, 1000/* lifetime */);
+	gl.clearColor(0.0, 0.0, 0.0, 1.0);
+	
+	particleWorld = new ParticleWorld();
+
+	var bank = new ParticleBank(500 /* buf size */, 10000/* lifetime */, loadProgram (gl, "shader-vs", "shader-fs" ));
 	particleWorld.addBank(bank);
-	var emitter = new ParticleEmitter( new ShapePoint({200, 200}));
+	var pos = {x:0, y:0, z:0}; 
+	emitter = new ParticleEmitter( new ShapePoint(pos), 2);
 	bank.addEmitter(emitter);
 
-	var lastUpdate = Date.now();
-	var myInterval = setInterval(tick, 0);
 
-	while(true)
-	{
-		//----measure delta time---
-		var now = Date.now();
-    	var dt = now - lastUpdate;
-    	lastUpdate = now;
-    	//-------------------------
+	animLoop();
+}
 
+var lastTime = +new Date;
+function animLoop()
+{
+	stats.begin();
+	var dt = (Date.now() - lastTime)/1000.0;
+	if(dt < 0.1)
+		GameLoop();
+	lastTime = Date.now();
+	requestAnimationFrame(animLoop);
+	stats.end();
+}
 
+function GameLoop()
+{
+	emitter.trigger();
+    //----update particle systems---
+	particleWorld.update();
 
-    	//----update particle systems---
-		particleWorld.update();
-		//------------------------------
-		particleWorld.render();
-	}
-
-
-})();
+	gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+	//------------------------------
+	particleWorld.render();
+	gl.flush ();
+}
