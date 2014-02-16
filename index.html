@@ -10,18 +10,20 @@
 		uniform float u_CurrentTime;
 		uniform float u_Lifetime;
 
+		varying mediump float v_period;
 		void main()
 		{
 			float period = (u_CurrentTime - a_Time) / u_Lifetime;
-			gl_Position = vec4(a_Position.x+period,a_Position.y,a_Position.z, 1.0);
+			v_period = period;
+			gl_Position = vec4(a_Position + a_Direction * period * 10.0, 1.0);
 			gl_PointSize = 40.0 * a_Seed;
 		}
 	</script>
 	<script id="shader-fs" type="x-shader/x-fragment">
-
+		varying mediump float v_period;
 		void main(void)
 		{
-		    gl_FragColor = vec4(1.0, 1.0, 1.0, 1.0);
+		    gl_FragColor = vec4(v_period, 1.0, 1.0, 1.0);
 		}
 	</script>
 	<script type="text/javascript" src="js/webgl-debug.js"></script>

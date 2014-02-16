@@ -9,7 +9,7 @@ function ShapePoint(position)
 	}
 	this.nextDirection = function(pos)
 	{
-		var dir = {x:Math.random(), y:Math.random(), z:0};
+		var dir = {x:Math.random() * 2.0 - 1.0, y:Math.random() * 2.0 - 1.0, z:0};
 		var len = Math.sqrt( dir.x * dir.x + dir.y * dir.y );
 		dir.x = dir.x / len;
 		dir.y = dir.y / len;
@@ -23,8 +23,7 @@ function ShapePoint(position)
 
 function ParticleWorld_GetNowTime()
 {
-	var date = Date.now();
-	return new Date().getTime();
+	return new Date().getTime() - this.StartTime;
 }
 
 function ParticleWorld_addBank(bank)
@@ -56,6 +55,8 @@ function ParticleWorld()
 	this.render = ParticleWorld_render;
 	this.addBank = ParticleWorld_addBank;
 	this.GetNowTime = ParticleWorld_GetNowTime;
+
+	this.StartTime = new Date().getTime();
 }
 // ---------------------------------------------------------------- END PARTICLE WORLD -----------------------
 
@@ -85,6 +86,7 @@ function ParticleBank_nextFree( )
 			nextPoint += 1;
 		}
 		this.activeCount += 1;
+		this.headPoiter = nextPoint;
 		return this.headPoiter; 
 	}
 	return -1;
@@ -106,7 +108,7 @@ function ParticleBank_addModifier( modifier )
 function ParticleBank_update( )
 {
 	// calculate pointer to tail of alive part of particles in our ring buffer 
-	var tail = this.headPoiter - this.activeCount;
+	var tail = this.headPoiter - (this.activeCount - 1);
 	if( tail < 0 )
 	{
 		tail += this.bufSize;
@@ -124,7 +126,6 @@ function ParticleBank_update( )
 		// If it's greater than lifetime, decrease count of alive particles
 		if( ( this.pworld.GetNowTime() - this.ringBuffer[tail * this.vertexElements + 6] ) > this.lifetime )
 		{
-console.log(this.ringBuffer[tail * this.vertexElements + 6] );
 			this.activeCount -= 1;
 			tail += 1;
 		}
@@ -284,7 +285,6 @@ function ParticleEmitter_trigger()
 				this.pbank.ringBuffer[index + 5] = direction.z;
 				// time
 				this.pbank.ringBuffer[index + 6] = this.pworld.GetNowTime();
-				console.log(this.pbank.ringBuffer[index + 6]);
 			}
 		}
 
@@ -349,12 +349,11 @@ function main () {
 	
 	particleWorld = new ParticleWorld();
 
-	var bank = new ParticleBank(500 /* buf size */, 10000/* lifetime */, loadProgram (gl, "shader-vs", "shader-fs" ));
+	var bank = new ParticleBank(5000 /* buf size */, 10000/* lifetime */, loadProgram (gl, "shader-vs", "shader-fs" ));
 	particleWorld.addBank(bank);
 	var pos = {x:0, y:0, z:0}; 
 	emitter = new ParticleEmitter( new ShapePoint(pos), 2);
 	bank.addEmitter(emitter);
-
 
 	animLoop();
 }
