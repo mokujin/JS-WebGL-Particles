@@ -304,9 +304,7 @@ function ParticleEmitter(shape, releaseQuantity)
 
 // --------------------------------------------------------------- BEGIN INIT STUFF ----------------------------
 var w, h, gl, canvas;
-var requestAnimationFrame = 
-    requestAnimationFrame ||
-    mozRequestAnimationFrame;
+var requestAnimationFrame = window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame;
 window.onload = main;
 var stats = new Stats();
 
