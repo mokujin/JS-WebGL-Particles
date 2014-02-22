@@ -15,7 +15,7 @@
 		{
 			float period = (u_CurrentTime - a_Time) / u_Lifetime;
 			v_period = period;
-			gl_Position = vec4(a_Position + a_Direction * period * 3.0, 1.0);
+			gl_Position = vec4(a_Position + a_Direction * period, 1.0);
 			gl_PointSize = 40.0 * a_Seed;
 		}
 	</script>
@@ -31,6 +31,7 @@
 	<script type="text/javascript" src="js/glstuff.js"></script>
 	<script type="text/javascript" src="js/Stats.js"></script>
 	<script type="text/javascript" src="js/particle_system.js"></script>
+	<script type="text/javascript" src="js/app.js"></script>
 	<link rel="stylesheet" type="text/css" href="css/default.css">
 	<title>WEBGL</title>
 </head>
