@@ -141,7 +141,6 @@ function ParticleBank_update( )
 	{
 		// calculate pointer to tail of alive part of particles in our ring buffer 
 		var tail = this.headPoiter - (this.activeCount - 1);
-		//console.log(tail);
 		if( tail < 0 )
 		{
 			var arrView1 = this.ringBuffer.subarray(0, this.headPoiter * this.vertexElements); 
@@ -166,15 +165,35 @@ function ParticleBank_update( )
 function ParticleBank_draw()
 {
 	this.pworld.context.useProgram(this.shader);
+	for(var propt in this.customMatrixUniforms)
+	{
+		if (this.customMatrixUniforms.hasOwnProperty(propt)) 
+		{
+        	setMatrixUniform(this.pworld.context, this.shader, propt, this.customMatrixUniforms[propt]);
+   		}
+	}
+
 	this.pworld.context.bindBuffer(this.pworld.context.ARRAY_BUFFER, 	this.dynamicBufferGPU);
 
-	bindPointer(this.pworld.context, this.shader, "a_Position", 	3, this.vertexElements * 4, 0  );
-	bindPointer(this.pworld.context, this.shader, "a_Direction", 3, this.vertexElements * 4, 3*4);
-	bindPointer(this.pworld.context, this.shader, "a_Time", 		1, this.vertexElements * 4, 6*4);
+	if(this.attributePosition != -1)	{
+		this.pworld.context.enableVertexAttribArray(this.attributePosition);
+		this.pworld.context.vertexAttribPointer(this.attributePosition, 3, this.pworld.context.FLOAT, false, this.vertexElements * 4, 0);
+	}
+	if(this.attributeDirection != -1)	{
+		this.pworld.context.enableVertexAttribArray(this.attributeDirection);
+		this.pworld.context.vertexAttribPointer(this.attributeDirection, 3, this.pworld.context.FLOAT, false, this.vertexElements * 4, 3*4);
+	}
+	if(this.attributeTime != -1)	{
+		this.pworld.context.enableVertexAttribArray(this.attributeTime);
+		this.pworld.context.vertexAttribPointer(this.attributeTime, 1, this.pworld.context.FLOAT, false, this.vertexElements * 4, 6*4);
+	}
 
 	this.pworld.context.bindBuffer(this.pworld.context.ARRAY_BUFFER, 	this.seedBufferGPU);
 
-	bindPointer(this.pworld.context, this.shader, "a_Seed", 		1, 4, 0);
+	if(this.attributeSeed != -1)	{
+		this.pworld.context.enableVertexAttribArray(this.attributeSeed);
+		this.pworld.context.vertexAttribPointer(this.attributeSeed, 1, this.pworld.context.FLOAT, false, 4, 0);
+	}
 
 	this.pworld.context.uniform1f(this.pworld.context.getUniformLocation(this.shader, "u_CurrentTime"), this.pworld.GetNowTime());
 	this.pworld.context.uniform1f(this.pworld.context.getUniformLocation(this.shader, "u_Lifetime"), this.lifetime);
@@ -195,6 +214,19 @@ function ParticleBank_draw()
 		}
 	}
 	this.pworld.context.flush ();
+
+	if(this.attributePosition != -1)	{
+		this.pworld.context.disableVertexAttribArray(this.attributePosition);
+	}
+	if(this.attributeDirection != -1)	{
+		this.pworld.context.disableVertexAttribArray(this.attributeDirection);
+	}
+	if(this.attributeTime != -1)	{
+		this.pworld.context.disableVertexAttribArray(this.attributeTime);
+	}
+	if(this.attributeSeed != -1)	{
+		this.pworld.context.disableVertexAttribArray(this.attributeSeed);
+	}
 }
 
 function ParticleBank_initShader()
@@ -256,7 +288,12 @@ function ParticleBank(pworld, size, lifetime, shader)
 	this.pworld.context.bufferData(this.pworld.context.ARRAY_BUFFER, this.seedBuffer, this.pworld.context.STATIC_DRAW);
 
 	this.shader = shader;
-	this.initShader();
+	this.customMatrixUniforms = new Object();
+	
+	this.attributePosition = this.pworld.context.getAttribLocation(this.shader, "a_Position");
+	this.attributeDirection = this.pworld.context.getAttribLocation(this.shader, "a_Direction");
+	this.attributeTime = this.pworld.context.getAttribLocation(this.shader, "a_Time");
+	this.attributeSeed = this.pworld.context.getAttribLocation(this.shader, "a_Seed");
 }
 // --------------------------------------------------------------- END PARTICLE BANK ----------------------
 
